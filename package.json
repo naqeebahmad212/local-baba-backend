@@ -1,12 +1,12 @@
 {
   "name": "local-baba-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/app.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "ts-node src/app.ts",
     "build": "tsc",
-    "serve": "node dist/app.ts",
+    "serve": "node --max-old-space-size=4096 dist/app.ts",
     "dev": "nodemon"
   },
   "keywords": [],
