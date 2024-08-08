@@ -17,6 +17,16 @@ import Notification from "../models/notification";
 export const registerRestaurant = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body;
+
+    if (!email || password)
+      return next(
+        new ApiErrorHandler("Please provide email and password", 400)
+      );
+
+    const user = await User.findOne({ email });
+    if (user)
+      return next(new ApiErrorHandler("A user with this email exists", 400));
+
     const restaurant = await Restaurant.create({
       email,
       password,
@@ -173,10 +183,23 @@ export const uploadLegalCopy = asyncHandler(
   }
 );
 
+export const getCurrentRestaurant = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.restaurant)
+      return next(new ApiErrorHandler("Restaurant not found", 404));
+    const restaurant = await Restaurant.findById(req.restaurant._id);
+    res.status(200).json({
+      success: true,
+      restaurant,
+    });
+  }
+);
+
 export const addNewProduct = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     if (!req.restaurant)
       return next(new ApiErrorHandler("Restaurant not found", 404));
+
     const ifProductExist = await Product.findOne({
       restaurant: req.restaurant._id,
       itemName: req.body.itemName,
@@ -189,6 +212,7 @@ export const addNewProduct = asyncHandler(
         )
       );
     }
+
     let imageName = "";
     if (req.file) {
       imageName = req.file.filename;
@@ -206,7 +230,6 @@ export const addNewProduct = asyncHandler(
       ingredients: [],
       sizes: [],
       extras: [],
-      specialInstructions: req.body.specialInstructions,
       availability: req.body.availability,
       image: image,
       discountPercentage: calculateDiscountPercentage(
@@ -278,10 +301,14 @@ export const updateProduct = asyncHandler(
     product.basePrice = parseFloat(req.body.basePrice) || product.basePrice;
     product.discountPrice =
       parseFloat(req.body.discountPrice) || product.discountPrice;
-    product.image = image || product.image;
-    product.specialInstructions =
-      req.body.specialInstructions || product.specialInstructions;
+    product.discountPercentage =
+      calculateDiscountPercentage(req.body.basePrice, req.body.discountPrice) ||
+      product.discountPercentage;
     product.availability = req.body.availability || product.availability;
+
+    if (req.file) {
+      product.image = image;
+    }
 
     // Handle ingredients
     if (Array.isArray(req.body.ingredients)) {
@@ -298,9 +325,10 @@ export const updateProduct = asyncHandler(
 
     // Handle extras
     if (Array.isArray(req.body.extras)) {
+      console.log(req.body.extras);
       product.extras = req.body.extras.map((extra: any) => ({
         name: extra.name,
-        price: parseFloat(extra.price),
+        price: extra.price,
       }));
     }
 
@@ -312,19 +340,54 @@ export const updateProduct = asyncHandler(
     });
   }
 );
+export const deleteProduct = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    await Product.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Product deleted successfully",
+    });
+  }
+);
+export const getSingleProduct = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    const product = await Product.findById(id).populate("category");
+    if (!product) return next(new ApiErrorHandler("Product not found", 404));
+
+    res.status(200).json({
+      success: true,
+      product,
+    });
+  }
+);
 
 export const getRestaurantProducts = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
+    const sort = req.query.sort as string;
+    const query = req.query.q as string;
     if (!req.restaurant)
       return next(new ApiErrorHandler("Restaurant not found", 404));
     const { _id: id } = req.restaurant;
-    const restaurant = await Restaurant.findById(id).populate("products");
-    if (!restaurant) {
+    let products = await Product.find({
+      restaurant: id,
+    }).sort({
+      createdAt: sort === "asc" ? 1 : -1,
+    });
+    if (query) {
+      products = products.filter((product) =>
+        product.itemName.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    if (!products) {
       return next(new ApiErrorHandler("Restaurant not found", 404));
     }
     res.status(200).json({
       success: true,
-      products: restaurant.products,
+      products,
     });
   }
 );
@@ -334,17 +397,207 @@ export const getRestaurantOrders = asyncHandler(
     if (!req.restaurant)
       return next(new ApiErrorHandler("Restaurant not found", 404));
     const { _id: id } = req.restaurant;
-    const orders = await Order.find({ restaurant: id }).populate({
-      path: "restaurant",
-      select: "name image",
-    });
+
+    const timeQuery = req.query.time;
+    const sort = req.query.sort as string;
+    const search = req.query.search as string;
+
+    let orders = await Order.find({ restaurant: id })
+      .sort({
+        createdAt: sort === "asc" ? 1 : -1,
+      })
+      .populate({
+        path: "restaurant",
+        select: "name image",
+      })
+      .populate({
+        path: "user",
+        select:
+          "name email image personalDetails.phone personalDetails.address",
+      })
+      .populate({
+        path: "orderItem.product",
+        select: "itemName description",
+      });
+
+    // const orders = await Order.aggregate([
+    //   {
+    //     $lookup: {
+    //       from: "users", // Collection name for User model
+    //       localField: "user", // Field in Order collection
+    //       foreignField: "_id", // Field in User collection
+    //       as: "userDetails",
+    //     },
+    //   },
+    //   {
+    //     $unwind: "$userDetails", // Unwind the array created by $lookup
+    //   },
+
+    //   {
+    //     $match: {
+    //       "userDetails.name": "khan", // Match orders where user's name is userName
+    //     },
+    //   },
+    //   {
+    //     $addFields: {
+    //       user: "$userDetails",
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       "userDetails.name": 1,
+    //       "userDetails.email": 1,
+    //       "userDetails.image": 1,
+    //       "userDetails.personalDetails.phone": 1,
+    //       "userDetails.personalDetails.address": 1,
+    //       orderItem: 1,
+    //       user: 1,
+    //       restaurant: 1,
+    //       paymentInfo: 1,
+    //       paidAt: 1,
+    //       itemsPrice: 1,
+    //       taxPrice: 1,
+    //       deliveredBy: 1,
+    //       shippingPrice: 1,
+    //       totalPrice: 1,
+    //       orderStatus: 1,
+    //       deliveredAt: 1,
+    //       createdAt: 1,
+    //     },
+    //   },
+    // ]);
+
     if (!orders) {
       return next(new ApiErrorHandler("orders not found", 404));
     }
-    res.status(200).json({
-      success: true,
-      orders,
-    });
+
+    if (search) {
+      orders = orders.filter((order) => {
+        const user = order.user as any;
+        return user?.name.toLowerCase().includes(search.toLowerCase());
+      });
+    }
+
+    // current week order ================================
+    if (timeQuery === "weekly") {
+      const endOfWeek = new Date();
+      const startOfWeek = new Date();
+      startOfWeek.setDate(endOfWeek.getDate() - 7); // 30 days ago
+
+      let weeklyOrders = await Order.find({
+        restaurant: req.restaurant._id,
+        createdAt: {
+          $gte: startOfWeek,
+          $lt: endOfWeek,
+        },
+      })
+        .populate({
+          path: "restaurant",
+          select: "name image",
+        })
+        .populate({
+          path: "user",
+          select:
+            "name email image personalDetails.phone personalDetails.address",
+        })
+        .populate({
+          path: "orderItem.product",
+          select: "itemName description",
+        });
+
+      if (search) {
+        weeklyOrders = weeklyOrders.filter((order) => {
+          const user = order.user as any;
+          return user?.name.toLowerCase().includes(search.toLowerCase());
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        orders: weeklyOrders,
+      });
+    }
+    // current month orders+++++++++++++++++++++++++++++++++++++++
+    else if (timeQuery === "monthly") {
+      const endOfMonth = new Date();
+      const startOfMonth = new Date();
+      startOfMonth.setDate(endOfMonth.getDate() - 30); // 30 days ago
+
+      let monthlyOrders = await Order.find({
+        restaurant: req.restaurant._id,
+        createdAt: {
+          $gte: startOfMonth,
+          $lt: endOfMonth,
+        },
+      })
+        .populate({
+          path: "restaurant",
+          select: "name image",
+        })
+        .populate({
+          path: "user",
+          select:
+            "name email image personalDetails.phone personalDetails.address",
+        })
+        .populate({
+          path: "orderItem.product",
+          select: "itemName description",
+        });
+      if (search) {
+        monthlyOrders = monthlyOrders.filter((order) => {
+          const user = order.user as any;
+          return user?.name.toLowerCase().includes(search.toLowerCase());
+        });
+      }
+      res.status(200).json({
+        success: true,
+        orders: monthlyOrders,
+      });
+    }
+
+    // todays orders+++++++++++++++++++++++
+    else if (timeQuery === "daily") {
+      const endOfDay = new Date();
+      const startOfDay = new Date();
+      startOfDay.setHours(startOfDay.getHours() - 24); // 24 hours ago
+
+      let hourlyOrders = await Order.find({
+        restaurant: req.restaurant._id,
+        createdAt: {
+          $gte: startOfDay,
+          $lt: endOfDay,
+        },
+      })
+        .populate({
+          path: "restaurant",
+          select: "name image",
+        })
+        .populate({
+          path: "user",
+          select:
+            "name email image personalDetails.phone personalDetails.address",
+        })
+        .populate({
+          path: "orderItem.product",
+          select: "itemName description",
+        });
+
+      if (search) {
+        hourlyOrders = hourlyOrders.filter((order) => {
+          const user = order.user as any;
+          return user?.name.toLowerCase().includes(search.toLowerCase());
+        });
+      }
+      res.status(200).json({
+        success: true,
+        orders: hourlyOrders,
+      });
+    } else {
+      res.status(200).json({
+        orders,
+        success: true,
+      });
+    }
   }
 );
 
@@ -593,7 +846,10 @@ export const getRestaurantReviews = asyncHandler(
   async (req: Request, res: Response, next: Function) => {
     if (!req.restaurant)
       return next(new ApiErrorHandler("restaurant not found", 404));
-    const restaurant = await Restaurant.findById(req.restaurant._id);
+    const restaurant = await Restaurant.findById(req.restaurant._id).populate({
+      path: "reviews.user",
+      select: "name image",
+    });
 
     res.status(200).json({
       reviews: restaurant?.reviews,

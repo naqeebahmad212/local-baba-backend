@@ -30,9 +30,10 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     session: true,
-    failureRedirect: "/login",
+    failureRedirect: "http://localhost:3000/login?error=restaurant_exists",
   }),
   (req: Request, res: Response) => {
+    console.log(req);
     if (req.user) {
       const user = req.user as UserWithLocation;
       const maxAge = Date.now() + 24 * 3 * 60 * 60 * 1000;
@@ -48,7 +49,9 @@ router.get(
         })
         .redirect("http://localhost:3000/callback?token=" + token);
     } else {
-      res.status(401).send("Authentication failed");
+      res
+        .status(400)
+        .send("Unable to logged you in make sure the email is not register");
     }
   }
 );

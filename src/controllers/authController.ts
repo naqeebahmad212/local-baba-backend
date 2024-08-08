@@ -15,24 +15,32 @@ import { sendRestaurantToken } from "../utils/sendRestuarantToken";
 export const loginUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body;
-
     const user = await User.findOne(
       { email },
       "-personalDetails -identification -vehicleDetails +password"
     ).exec();
-    if (!user) {
+    if (!user) return next(new ApiErrorHandler("Invalid Credentials", 401));
+
+    if (!user.password)
       return next(new ApiErrorHandler("Invalid Credentials", 401));
-    } else {
-      if (user.password) {
-        const auth = await bcrypt.compare(password, user.password);
-        if (!auth) {
-          return next(new ApiErrorHandler("Invalid Credentials", 401));
-        }
-        user.lastLogin = new Date();
-        await user.save();
-        sendToken(user, res, 201);
-      }
-    }
+    const auth = await bcrypt.compare(password, user.password);
+    if (!auth) return next(new ApiErrorHandler("Invalid Credentials", 401));
+    user.lastLogin = new Date();
+    await user.save();
+    sendToken(user, res, 201);
+    // else {
+    //   if (user.password) {
+    //     const auth = await bcrypt.compare(password, user.password);
+    //     if (!auth) {
+    //       return next(new ApiErrorHandler("Invalid Credentials", 401));
+    //     }
+    //     user.lastLogin = new Date();
+    //     await user.save();
+    //     sendToken(user, res, 201);
+    //   } else {
+    //     return next(new ApiErrorHandler("Invalid Credentials", 401));
+    //   }
+    // }
   }
 );
 

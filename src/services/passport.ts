@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import User from "../models/userModel";
 import { UserWithLocation } from "../@types/user";
 import dotenv from "dotenv";
+import Restaurant from "../models/restaurantModal";
 dotenv.config();
 
 // Configure Passport to use Google OAuth 2.0
@@ -27,7 +28,19 @@ passport.use(
         let user: UserWithLocation | null = await User.findOne({
           email: profile.emails[0].value,
         });
+
         if (!user) {
+          let restaurant = await Restaurant.findOne({
+            email: profile.emails[0].value,
+          });
+          if (restaurant) {
+            // If restaurant exists, respond with conflict
+            return done(null, false, {
+              message: "Restaurant already exists with this email.",
+            });
+          }
+
+          // If user doesn't exist, create a new user
           user = new User({
             googleId: profile.id,
             name: profile.displayName,

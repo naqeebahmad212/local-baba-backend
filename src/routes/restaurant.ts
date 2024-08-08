@@ -16,6 +16,9 @@ import {
   ownerDetails,
   updateOrder,
   getYearsComparison,
+  getCurrentRestaurant,
+  deleteProduct,
+  getSingleProduct,
 } from "../controllers/restaurantController";
 import {
   isAuthenticated,
@@ -50,6 +53,14 @@ router.post(
   isUserRoleAuthorize("restaurant"),
   multerUpload.single("legalCopy"),
   uploadLegalCopy
+);
+
+router.get(
+  "/current-restaurant",
+  isAuthenticated,
+  isUserRoleAuthorize("restaurant"),
+  isRestaurantApproved,
+  getCurrentRestaurant
 );
 
 router.post(
@@ -115,6 +126,22 @@ router.get(
   isUserRoleAuthorize("restaurant"),
   isRestaurantApproved,
   getRestaurantProducts
+);
+
+router.delete(
+  "/delete-product/:id",
+  isAuthenticated,
+  isUserRoleAuthorize("restaurant"),
+  isRestaurantApproved,
+  deleteProduct
+);
+
+router.get(
+  "/product/:id",
+  isAuthenticated,
+  isUserRoleAuthorize("restaurant"),
+  isRestaurantApproved,
+  getSingleProduct
 );
 
 router.get(

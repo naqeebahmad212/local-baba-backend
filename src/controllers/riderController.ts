@@ -15,6 +15,17 @@ import Notification from "../models/notification";
 export const registerRider = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return next(
+        new ApiErrorHandler("Please provide email and password", 400)
+      );
+    }
+    const restaurant = await Restaurant.findOne({ email });
+    if (restaurant)
+      return next(
+        new ApiErrorHandler("A restaurant with this email exists", 400)
+      );
+
     const rider = await User.create({
       email,
       password,
@@ -282,7 +293,7 @@ export const acceptOrder = asyncHandler(
     try {
       const newNotification = await storeNotification(
         "orderAccepted",
-        order.user,
+        order.user as any,
         order.restaurant!,
         updatedOrder._id as any,
         message

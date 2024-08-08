@@ -1,4 +1,5 @@
 import mongoose, { Types } from "mongoose";
+import { UserWithLocation } from "./user";
 export type Review = {
   user: mongoose.Schema.Types.ObjectId;
   rating: number;
@@ -67,7 +68,7 @@ interface PaymentInfo {
 
 export interface Order extends Document {
   orderItem: OrderItem[];
-  user: mongoose.Schema.Types.ObjectId;
+  user: UserWithLocation | mongoose.Schema.Types.ObjectId;
   restaurant?: mongoose.Schema.Types.ObjectId;
   paymentInfo: PaymentInfo;
   deliveredBy?: mongoose.Schema.Types.ObjectId;
