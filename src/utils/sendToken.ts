@@ -18,7 +18,7 @@ export const sendToken = (
       httpOnly: true,
       // expiresIn: maxAge,
       path: "/",
-      secure: false,
+      secure: true,
       sameSite: "none",
     })
     .status(statusCode)

@@ -18,7 +18,7 @@ export const sendRestaurantToken = (
       httpOnly: true,
       // expiresIn: maxAge,
       path: "/",
-      secure: false,
+      secure: true,
       sameSite: "none",
     })
     .status(statusCode)
