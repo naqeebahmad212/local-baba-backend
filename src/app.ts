@@ -31,7 +31,10 @@ const server = http.createServer(app);
 initializeSocketIO(server);
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://local-baba-restaurant.vercel.app",
+    ],
     credentials: true,
     methods: ["POST", "GET", "PUT", "DELETE"],
   })
