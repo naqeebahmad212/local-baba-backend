@@ -20,6 +20,7 @@ export const sendToken = (
       path: "/",
       secure: true,
       sameSite: "none",
+      domain: "https://local-baba-restaurant.vercel.app",
     })
     .status(statusCode)
     .json({ message: otpMsg ? otpMsg : "Authenticated", user, token });

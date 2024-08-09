@@ -1,7 +1,6 @@
 import { Response } from "express";
 import { Restaurant } from "../@types/restaurant";
-
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 export const sendRestaurantToken = (
   restaurant: Restaurant,
   res: Response,
@@ -16,10 +15,10 @@ export const sendRestaurantToken = (
   res
     .cookie("jwtTokenAccess", token, {
       httpOnly: true,
-      // expiresIn: maxAge,
       path: "/",
       secure: true,
       sameSite: "none",
+      domain: "https://local-baba-restaurant.vercel.app",
     })
     .status(statusCode)
     .json({ message: otpMsg ? otpMsg : "Authenticated", restaurant, token });
