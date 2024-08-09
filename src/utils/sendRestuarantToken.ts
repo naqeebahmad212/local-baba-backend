@@ -18,7 +18,6 @@ export const sendRestaurantToken = (
       path: "/",
       secure: true,
       sameSite: "none",
-      domain: ".vercel.app",
     })
     .status(statusCode)
     .json({ message: otpMsg ? otpMsg : "Authenticated", restaurant, token });
