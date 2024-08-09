@@ -45,7 +45,7 @@ export const loginUser = asyncHandler(
 );
 
 export const logoutUser = (req: Request, res: Response, next: NextFunction) => {
-  res.cookie("jwtTokenAccess", "", { maxAge: 0 }).json({ succuss: true });
+  res.clearCookie("jwtTokenAccess").json({ succuss: true });
 };
 
 export const forgotPassword = asyncHandler(
